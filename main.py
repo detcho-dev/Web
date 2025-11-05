@@ -1,27 +1,36 @@
-# chat_app.py
 import asyncio
 import websockets
 import json
 import os
 import secrets
-from functools import partial
 from datetime import datetime
 
+# Configuration
 PORT = int(os.environ.get("PORT", 8000))
 HOST = "0.0.0.0"
 
-# ⚠️ --- عدل هذين ببيانات Cloudinary ---
-CLOUDINARY_CLOUD_NAME = os.environ.get("CLOUD_NAME", "dh328ytl3)
-CLOUDINARY_UPLOAD_PRESET = os.environ.get("UPLOAD_PRESET", "MYM_Library)
+# Cloudinary settings (read from environment variables)
+CLOUD_NAME = os.environ.get("CLOUD_NAME", "dh328ytl3")
+UPLOAD_PRESET = os.environ.get("UPLOAD_PRESET", "MYM_Library")
 
-# { code: { "ws": websocket, "name": str, "avatar": str } }
+# Online users: { code: { "ws": websocket, "name": str, "avatar": str } }
 online_users = {}
 
+
 def generate_code():
+    """Generate a random 5-character alphanumeric room code."""
     return secrets.token_urlsafe(4).replace("_", "").replace("-", "").upper()[:5]
 
-# --- HTML بدون PWA ---
-HTML = f'''
+
+async def http_handler(path, request_headers):
+    """Serve the main HTML page with dynamic Cloudinary config."""
+    from websockets import http
+    if path == "/":
+        # Inject Cloudinary config at request time (supports env changes)
+        cloud_name = os.environ.get("CLOUD_NAME", "dh328ytl3")
+        upload_preset = os.environ.get("UPLOAD_PRESET", "MYM_Library")
+
+        html_content = f'''
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -129,7 +138,7 @@ HTML = f'''
         }}
         #manualCode, #messageInput {{
             padding: 12px;
-            border: 1px solid var(--border);
+            border: 1px solid(var(--border);
             border-radius: 24px;
             font-size: 16px;
             outline: none;
@@ -284,7 +293,6 @@ HTML = f'''
             }}
         }};
 
-        // مؤشر الكتابة
         let typingTimer;
         messageInput.oninput = () => {{
             if (currentTargetCode) {{
@@ -354,9 +362,9 @@ HTML = f'''
             if (file && currentTargetCode) {{
                 const formData = new FormData();
                 formData.append("file", file);
-                formData.append("upload_preset", "{CLOUDINARY_UPLOAD_PRESET}");
+                formData.append("upload_preset", "{upload_preset}");
                 try {{
-                    const res = await fetch("https://api.cloudinary.com/v1_1/{CLOUDINARY_CLOUD_NAME}/upload", {{
+                    const res = await fetch("https://api.cloudinary.com/v1_1/{cloud_name}/upload", {{
                         method: "POST",
                         body: formData
                     }});
@@ -381,24 +389,23 @@ HTML = f'''
 </html>
 '''.strip()
 
-# --- معالج HTTP ---
-async def http_handler(path, request_headers):
-    from websockets import http
-    if path == "/":
         return http.HTTPResponse(
             status_code=200,
             headers=[("Content-Type", "text/html; charset=utf-8")],
-            body=HTML.encode("utf-8"),
+            body=html_content.encode("utf-8"),
         )
     return http.HTTPResponse(status_code=404)
 
-# --- معالج WebSocket ---
+
 async def ws_handler(websocket, path):
+    """Handle WebSocket connections for real-time chat."""
     if path != "/ws":
         await websocket.close(1002, "Invalid path")
         return
 
     my_code = None
+    my_name = "مجهول"
+
     try:
         init = await websocket.recv()
         data = json.loads(init)
@@ -418,7 +425,7 @@ async def ws_handler(websocket, path):
             "name": my_name,
             "avatar": my_avatar
         }
-        print(f"✅ دخل: {my_name} ({my_code})")
+        print(f"✅ User joined: {my_name} ({my_code})")
 
         await websocket.send(json.dumps({
             "type": "init",
@@ -446,16 +453,17 @@ async def ws_handler(websocket, path):
                         "content": text,
                         "isFile": is_file
                     }))
-    except:
+    except Exception as e:
+        # Optional: log error for debugging
         pass
     finally:
         if my_code in online_users:
             del online_users[my_code]
-            print(f"🔚 خرج: {my_name} ({my_code})")
+            print(f"🔚 User left: {my_name} ({my_code})")
 
-# --- التشغيل ---
+
 if __name__ == "__main__":
-    print(f"🚀 جاهز على المنفذ {PORT}")
+    print(f"🚀 Server running on {HOST}:{PORT}")
     server = websockets.serve(
         ws_handler,
         HOST,
