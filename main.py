@@ -11,8 +11,8 @@ PORT = int(os.environ.get("PORT", 8000))
 HOST = "0.0.0.0"
 
 # ⚠️ --- عدل هذين ببيانات Cloudinary ---
-CLOUDINARY_CLOUD_NAME = os.environ.get("CLOUD_NAME", "your_cloud_name")
-CLOUDINARY_UPLOAD_PRESET = os.environ.get("UPLOAD_PRESET", "your_preset")
+CLOUDINARY_CLOUD_NAME = os.environ.get("CLOUD_NAME", "dh328ytl3)
+CLOUDINARY_UPLOAD_PRESET = os.environ.get("UPLOAD_PRESET", "MYM_Library)
 
 # { code: { "ws": websocket, "name": str, "avatar": str } }
 online_users = {}
