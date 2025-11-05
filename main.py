@@ -1,4 +1,4 @@
-# main.py
+# chat_app.py
 import asyncio
 import websockets
 import json
@@ -10,55 +10,53 @@ from datetime import datetime
 PORT = int(os.environ.get("PORT", 8000))
 HOST = "0.0.0.0"
 
+# ⚠️ --- عدل هذين ببيانات Cloudinary ---
 CLOUDINARY_CLOUD_NAME = os.environ.get("CLOUD_NAME", "your_cloud_name")
 CLOUDINARY_UPLOAD_PRESET = os.environ.get("UPLOAD_PRESET", "your_preset")
 
-# { code: { "ws": websocket, "name": str, "avatar": str, "typing": set() } }
+# { code: { "ws": websocket, "name": str, "avatar": str } }
 online_users = {}
 
 def generate_code():
     return secrets.token_urlsafe(4).replace("_", "").replace("-", "").upper()[:5]
 
-# --- HTML مع دعم PWA ومؤشر الكتابة الكامل ---
-HTML = '''
+# --- HTML بدون PWA ---
+HTML = f'''
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>وَصِل</title>
-    <meta name="description" content="دردشة فورية برقم فريد — بدون تسجيل">
-    <link rel="manifest" href="/manifest.json">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💬</text></svg>">
     <style>
-        :root {
+        :root {{
             --bg: #ffffff;
             --text: #000000;
             --header: #075e54;
             --msg-bg: #dcf8c6;
             --input-bg: #f0f2f5;
             --border: #e0e0e0;
-        }
-        @media (prefers-color-scheme: dark) {
-            :root {
+        }}
+        @media (prefers-color-scheme: dark) {{
+            :root {{
                 --bg: #121212;
                 --text: #ffffff;
                 --header: #064a43;
                 --msg-bg: #2a3f35;
                 --input-bg: #2a2a2a;
                 --border: #444444;
-            }
-        }
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; }
-        body {
+            }}
+        }}
+        * {{ margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; }}
+        body {{
             background: var(--bg);
             color: var(--text);
             height: 100vh;
             display: flex;
             flex-direction: column;
             overflow: hidden;
-        }
-        .header {
+        }}
+        .header {{
             background: var(--header);
             color: white;
             padding: 12px 15px;
@@ -69,8 +67,8 @@ HTML = '''
             justify-content: center;
             align-items: center;
             gap: 10px;
-        }
-        .avatar {
+        }}
+        .avatar {{
             width: 36px;
             height: 36px;
             border-radius: 50%;
@@ -81,14 +79,14 @@ HTML = '''
             justify-content: center;
             font-weight: bold;
             color: white;
-        }
-        .chat-area {
+        }}
+        .chat-area {{
             flex: 1;
             display: flex;
             flex-direction: column;
             padding: 10px;
-        }
-        #chats {
+        }}
+        #chats {{
             flex: 1;
             background: var(--input-bg);
             padding: 15px;
@@ -96,39 +94,40 @@ HTML = '''
             overflow-y: auto;
             margin-bottom: 15px;
             border: 1px solid var(--border);
-        }
-        .message {
+        }}
+        .message {{
             max-width: 70%;
             padding: 10px 14px;
             margin-bottom: 10px;
             border-radius: 12px;
             word-wrap: break-word;
-        }
-        .sent {
+        }}
+        .sent {{
             background: var(--msg-bg);
             margin-left: auto;
-        }
-        .received {
+        }}
+        .received {{
             background: var(--border);
             margin-left: 0;
-        }
-        .file-msg {
+        }}
+        .file-msg {{
             color: var(--header);
             text-decoration: underline;
             cursor: pointer;
-        }
-        .typing {
+        }}
+        .typing {{
             color: #999;
             font-style: italic;
             padding: 5px 0;
             font-size: 14px;
-        }
-        .input-area {
+            display: none;
+        }}
+        .input-area {{
             display: flex;
             gap: 8px;
             align-items: center;
-        }
-        #manualCode, #messageInput {
+        }}
+        #manualCode, #messageInput {{
             padding: 12px;
             border: 1px solid var(--border);
             border-radius: 24px;
@@ -136,14 +135,14 @@ HTML = '''
             outline: none;
             background: var(--input-bg);
             color: var(--text);
-        }
-        #manualCode { flex: 0 0 100px; text-align: center; }
-        #messageInput { flex: 1; }
-        .input-buttons {
+        }}
+        #manualCode {{ flex: 0 0 100px; text-align: center; }}
+        #messageInput {{ flex: 1; }}
+        .input-buttons {{
             display: flex;
             gap: 6px;
-        }
-        .btn {
+        }}
+        .btn {{
             background: var(--header);
             color: white;
             border: none;
@@ -152,14 +151,14 @@ HTML = '''
             border-radius: 50%;
             font-size: 16px;
             cursor: pointer;
-        }
-        .info {
+        }}
+        .info {{
             text-align: center;
             padding: 8px;
             font-size: 13px;
             color: #666;
-        }
-        #yourLink {
+        }}
+        #yourLink {{
             display: block;
             margin: 5px auto;
             padding: 6px;
@@ -171,31 +170,19 @@ HTML = '''
             max-width: 90%;
             overflow: hidden;
             text-overflow: ellipsis;
-        }
-        .install-btn {
-            background: #4CAF50;
-            color: white;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            cursor: pointer;
-            margin-top: 5px;
-            display: none;
-        }
+        }}
     </style>
 </head>
 <body>
     <div class="header">
         <div class="avatar" id="myAvatar">👤</div>
         وَصِل
-        <button class="install-btn" id="installBtn">تثبيت التطبيق</button>
     </div>
     <div class="chat-area">
         <div id="chats">
             <div class="placeholder">جاري الاتصال...</div>
         </div>
-        <div class="typing" id="typingIndicator" style="display:none;"></div>
+        <div class="typing" id="typingIndicator">الطرف الآخر يكتب...</div>
         <div class="info">
             <a id="yourLink" href="#" target="_blank">يتم التحميل...</a>
         </div>
@@ -211,30 +198,6 @@ HTML = '''
     </div>
 
     <script>
-        // --- PWA Install Button ---
-        let deferredPrompt;
-        const installBtn = document.getElementById('installBtn');
-        
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            installBtn.style.display = 'inline-block';
-        });
-
-        installBtn.addEventListener('click', () => {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                deferredPrompt.userChoice.then((choiceResult) => {
-                    if (choiceResult.outcome === 'accepted') {
-                        console.log('تم تثبيت التطبيق');
-                    }
-                    installBtn.style.display = 'none';
-                    deferredPrompt = null;
-                });
-            }
-        });
-
-        // --- باقي الكود ---
         const urlParams = new URLSearchParams(window.location.search);
         const targetCode = urlParams.get('c');
         let myCode = localStorage.getItem("myCode");
@@ -242,7 +205,7 @@ HTML = '''
         let myAvatar = localStorage.getItem("myAvatar") || null;
         let currentTargetCode = targetCode;
         let ws;
-        const chats = {{}}; // { targetCode: [msgs] }
+        const chats = {{}};
 
         const avatarDiv = document.getElementById("myAvatar");
         if (myAvatar) {{
@@ -298,60 +261,37 @@ HTML = '''
 
         ws.onmessage = (event) => {{
             const data = JSON.parse(event.data);
-            
             if (data.type === "init") {{
                 myCode = data.myCode;
                 localStorage.setItem("myCode", myCode);
                 const fullLink = `${{window.location.origin}}?c=${{myCode}}`;
                 yourLink.href = fullLink;
                 yourLink.innerText = "شارك رابط دردشتك:";
-                yourLink.title = fullLink;
-
                 if (targetCode) {{
                     currentTargetCode = targetCode;
                     enableChat(targetCode);
                 }}
             }}
-
             if (data.type === "message") {{
                 const fromCode = data.fromCode;
-                const content = data.content;
-                const isFile = data.isFile;
-                addMessageToChat(fromCode, content, false, isFile);
-                if (currentTargetCode === fromCode) {{
-                    scrollToBottom();
-                }}
+                addMessageToChat(fromCode, data.content, false, data.isFile);
+                if (currentTargetCode === fromCode) scrollToBottom();
             }}
-
             if (data.type === "typing") {{
-                const fromCode = data.fromCode;
-                if (currentTargetCode === fromCode) {{
-                    if (data.isTyping) {{
-                        typingIndicator.innerText = "يكتب...";
-                        typingIndicator.style.display = "block";
-                    } else {{
-                        typingIndicator.style.display = "none";
-                    }}
+                if (currentTargetCode === data.fromCode) {{
+                    typingIndicator.style.display = data.isTyping ? "block" : "none";
                 }}
             }}
         }};
 
-        // --- مؤشر الكتابة (مرتبط بكل محادثة) ---
+        // مؤشر الكتابة
         let typingTimer;
         messageInput.oninput = () => {{
             if (currentTargetCode) {{
-                ws.send(JSON.stringify({{ 
-                    type: "typing", 
-                    toCode: currentTargetCode, 
-                    isTyping: true 
-                }}));
+                ws.send(JSON.stringify({{ type: "typing", toCode: currentTargetCode, isTyping: true }}));
                 clearTimeout(typingTimer);
                 typingTimer = setTimeout(() => {{
-                    ws.send(JSON.stringify({{ 
-                        type: "typing", 
-                        toCode: currentTargetCode, 
-                        isTyping: false 
-                    }}));
+                    ws.send(JSON.stringify({{ type: "typing", toCode: currentTargetCode, isTyping: false }}));
                 }}, 1000);
             }}
         }};
@@ -359,23 +299,18 @@ HTML = '''
         function addMessageToChat(targetCode, content, isSent, isFile = false) {{
             if (!chats[targetCode]) chats[targetCode] = [];
             chats[targetCode].push({{ content, isSent, isFile }});
-            if (currentTargetCode === targetCode) {{
-                renderChat();
-            }}
+            if (currentTargetCode === targetCode) renderChat();
         }}
 
         function renderChat() {{
             chatsDiv.innerHTML = "";
-            const msgs = chats[currentTargetCode] || [];
-            msgs.forEach(msg => {{
-                const msgDiv = document.createElement("div");
-                msgDiv.className = `message ${{msg.isSent ? 'sent' : 'received'}}`;
-                if (msg.isFile) {{
-                    msgDiv.innerHTML = `<a href="${{msg.content}}" target="_blank" class="file-msg">📁 ملف</a>`;
-                } else {{
-                    msgDiv.innerText = msg.content;
-                }}
-                chatsDiv.appendChild(msgDiv);
+            (chats[currentTargetCode] || []).forEach(msg => {{
+                const div = document.createElement("div");
+                div.className = `message ${{msg.isSent ? 'sent' : 'received'}}`;
+                div.innerHTML = msg.isFile ? 
+                    `<a href="${{msg.content}}" target="_blank" class="file-msg">📁 ملف</a>` : 
+                    msg.content;
+                chatsDiv.appendChild(div);
             }});
             scrollToBottom();
         }}
@@ -393,11 +328,7 @@ HTML = '''
 
         function sendMessage(text, isFile = false) {{
             if (!currentTargetCode) return;
-            ws.send(JSON.stringify({{ 
-                toCode: currentTargetCode, 
-                text, 
-                isFile 
-            }}));
+            ws.send(JSON.stringify({{ toCode: currentTargetCode, text, isFile }}));
             addMessageToChat(currentTargetCode, text, true, isFile);
             messageInput.value = "";
         }}
@@ -423,9 +354,9 @@ HTML = '''
             if (file && currentTargetCode) {{
                 const formData = new FormData();
                 formData.append("file", file);
-                formData.append("upload_preset", "''' + CLOUDINARY_UPLOAD_PRESET + '''");
+                formData.append("upload_preset", "{CLOUDINARY_UPLOAD_PRESET}");
                 try {{
-                    const res = await fetch("https://api.cloudinary.com/v1_1/''' + CLOUDINARY_CLOUD_NAME + '''/upload", {{
+                    const res = await fetch("https://api.cloudinary.com/v1_1/{CLOUDINARY_CLOUD_NAME}/upload", {{
                         method: "POST",
                         body: formData
                     }});
@@ -459,59 +390,9 @@ async def http_handler(path, request_headers):
             headers=[("Content-Type", "text/html; charset=utf-8")],
             body=HTML.encode("utf-8"),
         )
-    elif path == "/manifest.json":
-        manifest = '''
-        {
-            "name": "وَصِل - دردشة فورية",
-            "short_name": "وَصِل",
-            "description": "دردشة برقم فريد — بدون رقم هاتف",
-            "start_url": "/",
-            "display": "standalone",
-            "background_color": "#075e54",
-            "theme_color": "#075e54",
-            "icons": [{
-                "src": "/icon-192.png",
-                "sizes": "192x192",
-                "type": "image/png"
-            }, {
-                "src": "/icon-512.png",
-                "sizes": "512x512",
-                "type": "image/png"
-            }]
-        }
-        '''
-        return http.HTTPResponse(
-            status_code=200,
-            headers=[("Content-Type", "application/manifest+json")],
-            body=manifest.encode("utf-8"),
-        )
-    elif path == "/sw.js":
-        sw = '''
-        self.addEventListener('install', (e) => {
-            e.waitUntil(caches.open('wasil-v1').then(cache => {
-                return cache.addAll(['/']);
-            }));
-        });
-        self.addEventListener('fetch', (e) => {
-            e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)));
-        });
-        '''
-        return http.HTTPResponse(
-            status_code=200,
-            headers=[("Content-Type", "application/javascript")],
-            body=sw.encode("utf-8"),
-        )
-    elif path in ["/icon-192.png", "/icon-512.png"]:
-        # إرجاع أيقونة افتراضية (SVG كـ PNG بديل)
-        svg = f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">💬</text></svg>'
-        return http.HTTPResponse(
-            status_code=200,
-            headers=[("Content-Type", "image/svg+xml")],
-            body=svg.encode("utf-8"),
-        )
     return http.HTTPResponse(status_code=404)
 
-# --- معالج WebSocket مع دعم المؤشر ---
+# --- معالج WebSocket ---
 async def ws_handler(websocket, path):
     if path != "/ws":
         await websocket.close(1002, "Invalid path")
@@ -546,18 +427,14 @@ async def ws_handler(websocket, path):
 
         async for msg in websocket:
             data = json.loads(msg)
-            msg_type = data.get("type")
-
-            if msg_type == "typing":
+            if data.get("type") == "typing":
                 to_code = data.get("toCode")
-                is_typing = data.get("isTyping", False)
                 if to_code in online_users:
                     await online_users[to_code]["ws"].send(json.dumps({
                         "type": "typing",
                         "fromCode": my_code,
-                        "isTyping": is_typing
+                        "isTyping": data.get("isTyping", False)
                     }))
-
             elif "toCode" in data:
                 to_code = data["toCode"]
                 text = data.get("text", "")
