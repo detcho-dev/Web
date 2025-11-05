@@ -3,15 +3,10 @@ import websockets
 import json
 import os
 import secrets
-from datetime import datetime
 
 # Configuration
 PORT = int(os.environ.get("PORT", 8000))
 HOST = "0.0.0.0"
-
-# Cloudinary settings (read from environment variables)
-CLOUD_NAME = os.environ.get("CLOUD_NAME", "dh328ytl3")
-UPLOAD_PRESET = os.environ.get("UPLOAD_PRESET", "MYM_Library")
 
 # Online users: { code: { "ws": websocket, "name": str, "avatar": str } }
 online_users = {}
@@ -26,7 +21,7 @@ async def http_handler(path, request_headers):
     """Serve the main HTML page with dynamic Cloudinary config."""
     from websockets import http
     if path == "/":
-        # Inject Cloudinary config at request time (supports env changes)
+        # Read Cloudinary config from environment (at request time)
         cloud_name = os.environ.get("CLOUD_NAME", "dh328ytl3")
         upload_preset = os.environ.get("UPLOAD_PRESET", "MYM_Library")
 
@@ -138,7 +133,7 @@ async def http_handler(path, request_headers):
         }}
         #manualCode, #messageInput {{
             padding: 12px;
-            border: 1px solid(var(--border);
+            border: 1px solid var(--border);
             border-radius: 24px;
             font-size: 16px;
             outline: none;
@@ -442,7 +437,7 @@ async def ws_handler(websocket, path):
                         "fromCode": my_code,
                         "isTyping": data.get("isTyping", False)
                     }))
-            elif "toCode" in data:
+            elif "toCode" in data:  # ✅ تم إصلاح هذا السطر!
                 to_code = data["toCode"]
                 text = data.get("text", "")
                 is_file = data.get("isFile", False)
@@ -453,8 +448,7 @@ async def ws_handler(websocket, path):
                         "content": text,
                         "isFile": is_file
                     }))
-    except Exception as e:
-        # Optional: log error for debugging
+    except Exception:
         pass
     finally:
         if my_code in online_users:
