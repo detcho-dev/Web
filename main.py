@@ -51,7 +51,12 @@ async def http_handler(path, request_headers):
                 --border: #444444;
             }}
         }}
-        * {{ margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; }}
+        * {{ 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+            font-family: 'Segoe UI', Tahoma, sans-serif; 
+        }}
         body {{
             background: var(--bg);
             color: var(--text);
@@ -140,8 +145,13 @@ async def http_handler(path, request_headers):
             background: var(--input-bg);
             color: var(--text);
         }}
-        #manualCode {{ flex: 0 0 100px; text-align: center; }}
-        #messageInput {{ flex: 1; }}
+        #manualCode {{ 
+            flex: 0 0 100px; 
+            text-align: center; 
+        }}
+        #messageInput {{ 
+            flex: 1; 
+        }}
         .input-buttons {{
             display: flex;
             gap: 6px;
@@ -291,10 +301,18 @@ async def http_handler(path, request_headers):
         let typingTimer;
         messageInput.oninput = () => {{
             if (currentTargetCode) {{
-                ws.send(JSON.stringify({{ type: "typing", toCode: currentTargetCode, isTyping: true }}));
+                ws.send(JSON.stringify({{ 
+                    type: "typing", 
+                    toCode: currentTargetCode, 
+                    isTyping: true 
+                }}));
                 clearTimeout(typingTimer);
                 typingTimer = setTimeout(() => {{
-                    ws.send(JSON.stringify({{ type: "typing", toCode: currentTargetCode, isTyping: false }}));
+                    ws.send(JSON.stringify({{ 
+                        type: "typing", 
+                        toCode: currentTargetCode, 
+                        isTyping: false 
+                    }}));
                 }}, 1000);
             }}
         }};
@@ -331,7 +349,11 @@ async def http_handler(path, request_headers):
 
         function sendMessage(text, isFile = false) {{
             if (!currentTargetCode) return;
-            ws.send(JSON.stringify({{ toCode: currentTargetCode, text, isFile }}));
+            ws.send(JSON.stringify({{ 
+                toCode: currentTargetCode, 
+                text, 
+                isFile 
+            }}));
             addMessageToChat(currentTargetCode, text, true, isFile);
             messageInput.value = "";
         }}
@@ -428,27 +450,30 @@ async def ws_handler(websocket, path):
         }))
 
         async for msg in websocket:
-            data = json.loads(msg)
-            if data.get("type") == "typing":
-                to_code = data.get("toCode")
-                if to_code in online_users:
-                    await online_users[to_code]["ws"].send(json.dumps({
-                        "type": "typing",
-                        "fromCode": my_code,
-                        "isTyping": data.get("isTyping", False)
-                    }))
-            elif "toCode" in data:  # ✅ تم إصلاح هذا السطر!
-                to_code = data["toCode"]
-                text = data.get("text", "")
-                is_file = data.get("isFile", False)
-                if to_code in online_users and text:
-                    await online_users[to_code]["ws"].send(json.dumps({
-                        "type": "message",
-                        "fromCode": my_code,
-                        "content": text,
-                        "isFile": is_file
-                    }))
-    except Exception:
+            try:
+                data = json.loads(msg)
+                if data.get("type") == "typing":
+                    to_code = data.get("toCode")
+                    if to_code in online_users:
+                        await online_users[to_code]["ws"].send(json.dumps({
+                            "type": "typing",
+                            "fromCode": my_code,
+                            "isTyping": data.get("isTyping", False)
+                        }))
+                elif "toCode" in data:
+                    to_code = data["toCode"]
+                    text = data.get("text", "")
+                    is_file = data.get("isFile", False)
+                    if to_code in online_users and text:
+                        await online_users[to_code]["ws"].send(json.dumps({
+                            "type": "message",
+                            "fromCode": my_code,
+                            "content": text,
+                            "isFile": is_file
+                        }))
+            except json.JSONDecodeError:
+                continue
+    except Exception as e:
         pass
     finally:
         if my_code in online_users:
@@ -464,4 +489,5 @@ if __name__ == "__main__":
         PORT,
         process_request=http_handler,
     )
-    asyncio.run(server)
+    asyncio.get_event_loop().run_until_complete(server)
+    asyncio.get_event_loop().run_forever()
