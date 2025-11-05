@@ -27,7 +27,7 @@ HTML = f'''
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>وَصِل</title>
+    <title>Linkly</title>
     <style>
         :root {{
             --bg: #ffffff;
@@ -176,7 +176,7 @@ HTML = f'''
 <body>
     <div class="header">
         <div class="avatar" id="myAvatar">👤</div>
-        وَصِل
+        Linkly
     </div>
     <div class="chat-area">
         <div id="chats">
